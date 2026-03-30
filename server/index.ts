@@ -1,4 +1,4 @@
-import express, { type Request, type Response } from "express";
+import express, { type RequestHandler } from "express";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -7,15 +7,18 @@ const staticPath = path.resolve(process.cwd(), "dist/public");
 
 app.use(express.static(staticPath));
 
-app.get("*", (_req: Request, res: Response) => {
+const renderApp: RequestHandler = (_req, res) => {
   const indexPath = path.resolve(staticPath, "index.html");
 
   if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
+    res.sendFile(indexPath);
+    return;
   }
 
-  return res.status(404).send(`Frontend nao encontrado em: ${indexPath}`);
-});
+  res.status(404).send(`Frontend nao encontrado em: ${indexPath}`);
+};
+
+app.get("*", renderApp);
 
 export default app;
 
