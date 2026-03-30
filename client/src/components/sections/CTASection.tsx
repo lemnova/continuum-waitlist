@@ -6,8 +6,9 @@
  */
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useInView } from "../../hooks/useInView";
 import { ArrowRight, Check, AlertCircle } from "lucide-react";
+import { API_BASE_URL } from "../../const";
+import { useInView } from "../../hooks/useInView";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -36,7 +37,7 @@ export default function CTASection() {
     setErrorMessage("");
 
     try {
-      const response = await fetch("https://continuum-waitlist-api.onrender.com/waitlist", {
+      const response = await fetch(`${API_BASE_URL}/waitlist`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
