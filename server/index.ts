@@ -7,7 +7,7 @@ const staticPath = path.resolve(process.cwd(), "dist/public");
 
 app.use(express.static(staticPath));
 
-const renderApp = (_req: express.Request, res: express.Response): void => {
+const renderApp = (_req: unknown, res: any): void => {
   const indexPath = path.resolve(staticPath, "index.html");
 
   if (fs.existsSync(indexPath)) {
