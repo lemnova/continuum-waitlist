@@ -4,19 +4,48 @@
  * The final conversion moment. No distractions.
  * WITH: Waitlist integration, email validation, API submission
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, AlertCircle } from "lucide-react";
 import { API_BASE_URL } from "../../const";
 import { useInView } from "../../hooks/useInView";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
+const WAITLIST_COOKIE = "continuum_waitlist_email";
+
+function getSavedWaitlistEmail() {
+  if (typeof document === "undefined") return "";
+
+  const match = document.cookie
+    .split("; ")
+    .find((item) => item.startsWith(`${WAITLIST_COOKIE}=`));
+
+  return match ? decodeURIComponent(match.split("=")[1] ?? "") : "";
+}
+
+function saveWaitlistEmail(email: string) {
+  if (typeof document === "undefined") return;
+
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `${WAITLIST_COOKIE}=${encodeURIComponent(email)}; max-age=${maxAge}; path=/; SameSite=Lax`;
+}
 
 export default function CTASection() {
   const { ref, inView } = useInView(0.15);
   const [email, setEmail] = useState("");
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    const savedEmail = getSavedWaitlistEmail();
+
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setSubmittedEmail(savedEmail);
+      setState("success");
+    }
+  }, []);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -25,11 +54,27 @@ export default function CTASection() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate email
-    if (!validateEmail(email)) {
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!validateEmail(normalizedEmail)) {
       setErrorMessage("Please enter a valid email address.");
       setState("error");
+      return;
+    }
+
+    const existingEmail = getSavedWaitlistEmail();
+    if (existingEmail) {
+      setSubmittedEmail(existingEmail);
+      setState("success");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Confirm that you want to join the waitlist with:\n\n${normalizedEmail}`
+    );
+
+    if (!confirmed) {
       return;
     }
 
@@ -42,13 +87,18 @@ export default function CTASection() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
 
       if (!response.ok) {
         if (response.status === 409) {
-          setErrorMessage("This email is already on the waitlist.");
-        } else if (response.status === 400) {
+          saveWaitlistEmail(normalizedEmail);
+          setSubmittedEmail(normalizedEmail);
+          setState("success");
+          return;
+        }
+
+        if (response.status === 400) {
           setErrorMessage("Invalid email address.");
         } else {
           setErrorMessage("Something went wrong. Please try again.");
@@ -57,9 +107,11 @@ export default function CTASection() {
         return;
       }
 
+      saveWaitlistEmail(normalizedEmail);
+      setSubmittedEmail(normalizedEmail);
+      setEmail(normalizedEmail);
       setState("success");
-      setEmail("");
-    } catch (error) {
+    } catch (_error) {
       setErrorMessage("Something went wrong. Please try again.");
       setState("error");
     }
@@ -144,7 +196,9 @@ export default function CTASection() {
                       <Check size={16} className="text-[oklch(0.09_0.012_260)]" />
                     </div>
                     <p className="font-body text-[oklch(0.75_0.005_60)]">
-                      You're on the list. We’ll let you know when the beta launches.
+                      {submittedEmail
+                        ? `${submittedEmail} is already registered. We’ll let you know when the beta launches.`
+                        : "You're on the list. We’ll let you know when the beta launches."}
                     </p>
                   </motion.div>
                 ) : (
